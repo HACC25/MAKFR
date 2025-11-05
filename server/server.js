@@ -2,22 +2,27 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
+const User = require('./config')
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Load environment variables
 require('dotenv').config(); 
 
+
 const app = express();
 const PORT = 3000;
 const API_KEY = process.env.GEMINI_API_KEY;
 
-// Serve static files from a 'public' directory (optional, but good practice)
-//app.use(express.static(path.join(__dirname, 'public')));
-
-// Define a route to send an HTML file
+// // Define a route to send an HTML file
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ limit: '20mb', extended: true }));
+
+app.post('/create', async (req, res) => {
+  const data = req.body;
+  await User.add(data);
+  res.send({ msg:"User added" });
+});
 
 app.post('/api/gemini-text', async (req, res) => {
   const { prompt } = req.body;
@@ -92,7 +97,7 @@ async function runGemini(req) {
     console.log(text);
 }
 const questions = { body: "what is pi?"};
-runGemini(questions);
+//runGemini(questions);
 
 //AI FUNCTION (Text and image input))
 async function generateContentWithImageAndText() {
