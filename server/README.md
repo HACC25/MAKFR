@@ -55,35 +55,6 @@ Invoke-RestMethod -Method Post -Uri 'http://localhost:3000/create' -ContentType 
 @{ name = 'Test User'; email = 'test@example.com' } | ConvertTo-Json
 )
 ```
-
-2) Get user by email (GET /user?email=...)
-
-Successful request example (replace with an email present in Firestore):
-
-```powershell
-Invoke-RestMethod -Method Get -Uri 'http://localhost:3000/user?email=test@example.com'
-```
-
-If the `email` query parameter is missing or empty the server will return HTTP 400 and a JSON error. This prevents sending `undefined` values to Firestore.
-
-3) Gemini text generation (POST /api/gemini-text)
-
-```powershell
-Invoke-RestMethod -Method Post -Uri 'http://localhost:3000/api/gemini-text' -ContentType 'application/json' -Body (
-@{ prompt = 'Write a short poem about code' } | ConvertTo-Json
-)
-```
-
-4) Gemini text+image generation (POST /api/gemini-text-image)
-
-Send JSON with `prompt` and `image` (base64 string). Example (very large payloads are possible):
-
-```powershell
-Invoke-RestMethod -Method Post -Uri 'http://localhost:3000/api/gemini-text-image' -ContentType 'application/json' -Body (
-@{ prompt = 'Describe this image'; image = 'data:image/png;base64,<BASE64_DATA>' } | ConvertTo-Json
-)
-```
-
 ## Troubleshooting
 
 - Error: "Value for argument \"value\" is not a valid query constraint. Cannot use \"undefined\" as a Firestore value."
@@ -98,12 +69,3 @@ Invoke-RestMethod -Method Post -Uri 'http://localhost:3000/api/gemini-text-image
 - Do NOT commit `makfr-hacc-firebase-adminsdk-fbsvc.json` or `.env` with secrets to source control.
 - Limit API keys and rotate them regularly. If using a production server, use a secure secrets manager and environment-specific configs.
 
-## Next steps / recommendations
-
-- Add a small test script (e.g., using `supertest`) to exercise `/create` and `/user` endpoints automatically.
-- Use `nodemon` for local development.
-- Consider enabling Firestore `ignoreUndefinedProperties` only if you must serialize objects with optional fields; for queries it's better to validate inputs as implemented.
-
----
-
-If you want, I can also add a small `server/test-requests.ps1` script with example requests or add HTTP tests to the repo.
