@@ -12,15 +12,16 @@ try {
     //const analytics = getAnalytics(firebaseApp);
     const db = getFirestore();
     const User = db.collection('Users');
+    const Applicants = db.collection('applicants');
+    const Applications = db.collection('applications');
+    const ReviewOutcomes = db.collection('reviewOutcomes');
 
-    const getUserDataByEmail = async (email) => {
-        const userQuery = await User.where('email', '==', email).get();
-        console.log('User data response:', email);
-        const usersData = userQuery.docs.map(doc => doc.data());
+    const getData = async ( database, p1, boolean, p2) => {
+        const usersData = await database.where(p1, boolean, p2);
         return usersData;
     }
 
-    module.exports = { User, getUserDataByEmail };
+    module.exports = { User, Applicants, Applications, ReviewOutcomes, getData };
 } catch (error) {
     console.error("Firebase service account key file is missing. Please provide 'makfr-hacc-firebase-adminsdk-fbsvc.json'.");
     process.exit(1);
