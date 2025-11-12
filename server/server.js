@@ -7,7 +7,7 @@
  * Author: Kyle Alexander Baldovi
  * Date: 2024-06-10
  */
-
+// 
 
 const PDFParser = require('pdf-parse'); 
 const mammoth = require('mammoth');
@@ -41,7 +41,14 @@ const upload = multer({ storage: storage });
 
 
 // // Define a route to send an HTML file
-app.use(cors());
+
+const corsOptions = {
+  origin: 'http://localhost:5173', // Your React app's origin
+  methods: 'GET,POST,PUT,DELETE', // Allowed HTTP methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ limit: '20mb', extended: true }));
 
@@ -115,11 +122,29 @@ app.post('/applications', upload.single('document'), async (req, res) => {
 });
 
 
-app.get('/user', async (req, res) => {
-  const email = req.body.email;
-  const response = await getData(User, 'email', '==', email);
-  //console.log('User data response:', response);
-  res.json({ response });
+// Accept POST requests from the Vite proxy at `/api/jobListings`.
+// If a `jobId` is provided in the body, return that document.
+// Otherwise return all job postings as an array.
+app.post('/jobListings', async (req, res) => {
+  try {
+    const jobId = req.body.jobId;
+    if (jobId) {
+      const doc = await jobPostings.doc(jobId).get();
+      if (!doc.exists) {
+        return res.status(404).json({ error: 'Job not found' });
+      }
+      return res.json(doc.data());
+    }
+
+    // No jobId provided: return all job postings
+    const snapshot = await jobPostings.get();
+    const jobs = [];
+    snapshot.forEach(d => jobs.push({ id: d.id, ...d.data() }));
+    return res.json(jobs);
+  } catch (err) {
+    console.error('Error fetching job listings:', err);
+    return res.status(500).json({ error: 'Failed to fetch job listings' });
+  }
 });
 
 // Function to extract text from DOCX and PDF files
