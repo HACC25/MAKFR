@@ -1,3 +1,14 @@
+/**
+ * Server.js
+ * Main server file for handling job applications and AI reviews.
+ * Uses Express.js for routing, Multer for file uploads,
+ * and Google Gemini for AI-powered application reviews.
+ * Supports DOCX and PDF file types for resumes.
+ * Author: Kyle Alexander Baldovi
+ * Date: 2024-06-10
+ */
+
+
 const PDFParser = require('pdf-parse'); 
 const mammoth = require('mammoth');
 const express = require('express');
@@ -14,6 +25,7 @@ require('dotenv').config();
 const app = express();
 const PORT = 3000;
 const API_KEY = process.env.GEMINI_API_KEY;
+// Multer setup for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/');
@@ -58,6 +70,11 @@ app.post('/job-posting', async (req, res) => {
   res.send({ msg:"job posting(s) added!!" });
 });
 
+// Application submission route
+// Handles file upload, text extraction, and saving application data
+// Expects 'document' field in form-data for file upload
+// and 'applicantId' and 'jobId' in the body
+// Supports DOCX and PDF file types
 app.post('/applications', upload.single('document'), async (req, res) => {
   if (!req.file) {
     return res.status(400).send('No file uploaded.');
@@ -105,19 +122,43 @@ app.get('/user', async (req, res) => {
   res.json({ response });
 });
 
+// Function to extract text from DOCX and PDF files
+// Takes a buffer and file extension as input
+// Returns extracted text as a string
+async function extractTextFromBuffer(buffer, fileExtension) {
+  // Extract text based on file type
+  if (fileExtension === '.docx') {
+      const result = await mammoth.extractRawText({ buffer: buffer });
+      return result.value.toString();
+  } else if (fileExtension === '.pdf') {
+      const data = await PDFParser(buffer);
+      return data.text;
+  } else {
+      throw new Error("Unsupported file type. Only DOCX and PDF are supported.");
+  }
+}
+
+// AI Review Function
+// Periodically checks for new applications to review
+// and uses Gemini to generate a review decision
+// and updates the application status accordingly.
 async function reviewAi() {
+  // Fetch applications that need review  
   const response = await getData(Applications, 'currentStatus', '==', false);
   const snapshot = await response.get();
+  // Iterate through each application needing review
   snapshot.forEach(async (doc) => {
-    //console.log('Reviewing application:', doc.id, doc.data().jobId);
+    // Fetch the associated job posting details
     const getJob = await jobPostings.doc(doc.data().jobId).get();
     const applicationsRef = Applications.doc(doc.id);
     const now = new Date();
     const formattedTime = now.toISOString().slice(0, 19) + 'Z';
+    // Define the expected response schema for the AI review
     const responseSchema = {
         type: "object",
         properties: {
             applicantId: { type: "string", description: "The unique identifier of the applicant being reviewed." },
+            jobId: { type: "string", description: "The unique identifier of the job posting." },
             reviewType: { type: "string", description: "Type of review conducted by AI. either AI_screen or Human" },
             decision: { type: "string", description: "The decision made by the AI reviewer: Qualified, Not Qualified, Human Review Requested " },
             reviewTimestamp: { type: "string", format: "date-time", description: "The timestamp when the review was conducted." },
@@ -128,23 +169,31 @@ async function reviewAi() {
         required: ["reviewType", "decision", "reviewTimestamp", "reviewerId", "reasoningLog", "isFinalDecision"],
     };
 
+    // Construct the prompt for the AI model
     prompt = [];
     prompt.push({ text: "Review the following applicant's application and provide a decision based on the qualifications provided. NOTE: name and any personal information was redacted" });
     prompt.push({ text: JSON.stringify(doc.data()) });
     prompt.push({ text: "Also consider the job posting details: " });
     prompt.push({ text: JSON.stringify(getJob.data()) });
     
+    // Generate the AI review using the defined prompt and response schema
     const aiReview = await generateJsonOutput(prompt, responseSchema);
+    // Populate additional fields in the AI review
+    aiReview.reviewType = "AI_screen";
     aiReview.reviewTimestamp = formattedTime;
     aiReview.reviewerId = null;
+    aiReview.applicantId = doc.data().applicantId;
+    aiReview.jobId = doc.data().jobId;
+    // Save the AI review outcomes and update application status
     await ReviewOutcomes.doc(doc.id).set(aiReview);
     await applicationsRef.update({
       currentStatus:  true
     });
-    
   });
 }
+
 //reviewAi();
+// Set an interval to run the AI review function every 15 seconds
 setInterval(() => {
   console.log("Performing occasional check...");
   reviewAi();
