@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "@google/genai": "^1.29.0",
-    "pdf-parse": "^2.4.5"
-  }
-}
