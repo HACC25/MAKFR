@@ -206,7 +206,7 @@ app.post('/applications', upload.single('document'), async (req, res) => {
     const data = await fs.readFile(filePath);
    
     //const pdf = await PDFParser(data);
-    //console.log(path.extname(filePath).toLowerCase());
+    
     const rawText = await extractTextFromBuffer(data, path.extname(filePath).toLowerCase()) + "";
       
     // Delete the local file after successful processing
@@ -223,7 +223,7 @@ app.post('/applications', upload.single('document'), async (req, res) => {
       currentStatus: false
     } 
     await Applications.add(applicationJson);
-    //console.log("Application data saved:", applicationJson);
+    
     res.json({ msg: 'Application submitted successfully' });
   } catch (error) {
     console.error("Error extracting text locally:", error);
@@ -248,7 +248,7 @@ app.post('/api/jobListings', async (req, res) => {
       if (!doc.exists) {
         return res.status(404).json({ error: 'Job not found' });
       }
-      console.log(doc.data());
+      
       return res.json(doc.data());
     }
 
@@ -256,7 +256,7 @@ app.post('/api/jobListings', async (req, res) => {
     const snapshot = await jobPostings.get();
     const jobs = [];
     snapshot.forEach(d => jobs.push({ id: d.id, ...d.data() }));
-    console.log(jobs)
+    
     return res.json(jobs);
   } catch (err) {
     console.error('Error fetching job listings:', err);
@@ -455,7 +455,6 @@ async function extractTextFromBuffer(buffer, fileExtension) {
 
 app.post('/api/gemini-text', async (req, res) => {
   const { prompt } = req.body;
-  console.log('Received body:', req.body);
   try {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });

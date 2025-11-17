@@ -7,18 +7,29 @@ import ReviewerDashboard from './ReviewerDashboard';
 
 interface JobPosting {
   id: string;
+  approvalDate: string;
+  approvedBy: string;
+  datePosted: string;
   department: string;
-  dutiesSummary: string;
+  duties: string[];
+  jobSummary: string;
   jobTitle: string;
-  // The 'minimumQualifications' property is an object (or 'map') 
-  // containing nested qualification details.
+  jobType: string;
+  location: string;
+  salaryRange: string;
   minimumQualifications: {
     education: string;
-    experienceDetails: string;
-    generalExperienceYears: number;
-    licenseOrCertificationRequired: boolean;
-    specializedExperienceYears: number;
+    experience: {
+      agriculturalLoanAnalysis?: number;
+      creditAnalysis?: number;
+      farmBusinessManagement?: number;
+      supervisoryAptitude?: boolean;
+      totalYears: number;
+      [key: string]: any;
+    };
   };
+  substitutions?: string[];
+  otherRequirements?: string[];
 }
 
 function App() {
@@ -301,31 +312,27 @@ function App() {
                                                 <div id="jobHeaderMisc"> 
                                                     <div className="jobHeaderMiscItem"> 
                                                         <h4> Salary </h4>
-                                                        <p> N/A </p>
+                                                        <p> {iJobs?.salaryRange || 'N/A'} </p>
                                                     </div>
                                                     <div className="jobHeaderMiscItem"> 
                                                         <h4> Location </h4>
-                                                        <p> Oahu </p>
+                                                        <p> {iJobs?.location || 'Oahu'} </p>
                                                     </div>
                                                     <div className="jobHeaderMiscItem"> 
                                                         <h4> Job Type </h4>
-                                                        <p> Various </p>
-                                                    </div>
-                                                    <div className="jobHeaderMiscItem"> 
-                                                        <h4> Job Number </h4>
-                                                        <p> 01-0000 </p>
+                                                        <p> {iJobs?.jobType || 'Various'} </p>
                                                     </div>
                                                     <div className="jobHeaderMiscItem"> 
                                                         <h4> Department </h4>
-                                                        <p> DHRD </p>
+                                                        <p> {iJobs?.department || 'DHRD'} </p>
                                                     </div>
                                                     <div className="jobHeaderMiscItem"> 
-                                                        <h4> Opening Date </h4>
-                                                        <p> XX/XX/XX </p>
+                                                        <h4> Posted Date </h4>
+                                                        <p> {iJobs?.datePosted || 'XX/XX/XX'} </p>
                                                     </div>
                                                     <div className="jobHeaderMiscItem"> 
-                                                        <h4> Closing Date </h4>
-                                                        <p> Continuous </p>
+                                                        <h4> Approval Date </h4>
+                                                        <p> {iJobs?.approvalDate || 'N/A'} </p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -335,12 +342,57 @@ function App() {
                                               <button className="jobViewOptionItem"> Questions </button>
                                             </div>
                                             <div id="jobView">
-                                              <p><strong>Duties:</strong> {iJobs?.dutiesSummary}</p>
-                                              <p><strong>Education:</strong> {iJobs?.minimumQualifications.education}</p>
-                                              <p><strong>Experience Details:</strong> {iJobs?.minimumQualifications.experienceDetails}</p>
-                                              <div>
-                                                <strong>General Experience Years:</strong> {iJobs?.minimumQualifications.generalExperienceYears}
+                                              <p><strong>Job Summary:</strong> {iJobs?.jobSummary}</p>
+                                              <p><strong>Salary Range:</strong> {iJobs?.salaryRange}</p>
+                                              <p><strong>Job Type:</strong> {iJobs?.jobType}</p>
+                                              <p><strong>Location:</strong> {iJobs?.location}</p>
+                                              <p><strong>Date Posted:</strong> {iJobs?.datePosted}</p>
+                                              
+                                              <div style={{ marginTop: '16px' }}>
+                                                <strong>Duties:</strong>
+                                                <ul>
+                                                  {iJobs?.duties && iJobs.duties.map((duty, idx) => (
+                                                    <li key={idx}>{duty}</li>
+                                                  ))}
+                                                </ul>
                                               </div>
+                                              
+                                              <div style={{ marginTop: '16px' }}>
+                                                <strong>Minimum Qualifications:</strong>
+                                                <p><strong>Education:</strong> {iJobs?.minimumQualifications.education}</p>
+                                                <p><strong>Total Experience Required:</strong> {iJobs?.minimumQualifications.experience.totalYears} years</p>
+                                                {iJobs?.minimumQualifications.experience.agriculturalLoanAnalysis !== undefined && (
+                                                  <p><strong>Agricultural Loan Analysis:</strong> {iJobs.minimumQualifications.experience.agriculturalLoanAnalysis} year(s)</p>
+                                                )}
+                                                {iJobs?.minimumQualifications.experience.creditAnalysis !== undefined && (
+                                                  <p><strong>Credit Analysis:</strong> {iJobs.minimumQualifications.experience.creditAnalysis} year(s)</p>
+                                                )}
+                                                {iJobs?.minimumQualifications.experience.farmBusinessManagement !== undefined && (
+                                                  <p><strong>Farm Business Management:</strong> {iJobs.minimumQualifications.experience.farmBusinessManagement} year(s)</p>
+                                                )}
+                                              </div>
+                                              
+                                              {iJobs?.substitutions && iJobs.substitutions.length > 0 && (
+                                                <div style={{ marginTop: '16px' }}>
+                                                  <strong>Substitutions:</strong>
+                                                  <ul>
+                                                    {iJobs.substitutions.map((sub, idx) => (
+                                                      <li key={idx}>{sub}</li>
+                                                    ))}
+                                                  </ul>
+                                                </div>
+                                              )}
+                                              
+                                              {iJobs?.otherRequirements && iJobs.otherRequirements.length > 0 && (
+                                                <div style={{ marginTop: '16px' }}>
+                                                  <strong>Other Requirements:</strong>
+                                                  <ul>
+                                                    {iJobs.otherRequirements.map((req, idx) => (
+                                                      <li key={idx}>{req}</li>
+                                                    ))}
+                                                  </ul>
+                                                </div>
+                                              )}
                                             </div>                                            
                                           </div>
                                       ) : (
@@ -361,31 +413,27 @@ function App() {
                                                   <div id="jobHeaderMisc"> 
                                                       <div className="jobHeaderMiscItem"> 
                                                           <h4> Salary </h4>
-                                                          <p> N/A </p>
+                                                          <p> {job.salaryRange || 'N/A'} </p>
                                                       </div>
                                                       <div className="jobHeaderMiscItem"> 
                                                           <h4> Location </h4>
-                                                          <p> Oahu </p>
+                                                          <p> {job.location || 'Oahu'} </p>
                                                       </div>
                                                       <div className="jobHeaderMiscItem"> 
                                                           <h4> Job Type </h4>
-                                                          <p> Various </p>
-                                                      </div>
-                                                      <div className="jobHeaderMiscItem"> 
-                                                          <h4> Job Number </h4>
-                                                          <p> 01-0000 </p>
+                                                          <p> {job.jobType || 'Various'} </p>
                                                       </div>
                                                       <div className="jobHeaderMiscItem"> 
                                                           <h4> Department </h4>
-                                                          <p> DHRD </p>
+                                                          <p> {job.department || 'DHRD'} </p>
                                                       </div>
                                                       <div className="jobHeaderMiscItem"> 
-                                                          <h4> Opening Date </h4>
-                                                          <p> XX/XX/XX </p>
+                                                          <h4> Posted Date </h4>
+                                                          <p> {job.datePosted || 'XX/XX/XX'} </p>
                                                       </div>
                                                       <div className="jobHeaderMiscItem"> 
-                                                          <h4> Closing Date </h4>
-                                                          <p> Continuous </p>
+                                                          <h4> Approval Date </h4>
+                                                          <p> {job.approvalDate || 'N/A'} </p>
                                                       </div>
                                                   </div>
                                             </div>
@@ -395,12 +443,57 @@ function App() {
                                               <button className="jobViewOptionItem"> Questions </button>
                                             </div>
                                             <div id="jobView">
-                                              <p><strong>Duties:</strong> {job.dutiesSummary}</p>
-                                              <p><strong>Education:</strong> {job.minimumQualifications.education}</p>
-                                              <p><strong>Experience Details:</strong> {job.minimumQualifications.experienceDetails}</p>
-                                              <div>
-                                                <strong>General Experience Years:</strong> {job.minimumQualifications.generalExperienceYears}
+                                              <p><strong>Job Summary:</strong> {job.jobSummary}</p>
+                                              <p><strong>Salary Range:</strong> {job.salaryRange}</p>
+                                              <p><strong>Job Type:</strong> {job.jobType}</p>
+                                              <p><strong>Location:</strong> {job.location}</p>
+                                              <p><strong>Date Posted:</strong> {job.datePosted}</p>
+                                              
+                                              <div style={{ marginTop: '16px' }}>
+                                                <strong>Duties:</strong>
+                                                <ul>
+                                                  {job.duties && job.duties.map((duty, idx) => (
+                                                    <li key={idx}>{duty}</li>
+                                                  ))}
+                                                </ul>
                                               </div>
+                                              
+                                              <div style={{ marginTop: '16px' }}>
+                                                <strong>Minimum Qualifications:</strong>
+                                                <p><strong>Education:</strong> {job.minimumQualifications.education}</p>
+                                                <p><strong>Total Experience Required:</strong> {job.minimumQualifications.experience.totalYears} years</p>
+                                                {job.minimumQualifications.experience.agriculturalLoanAnalysis !== undefined && (
+                                                  <p><strong>Agricultural Loan Analysis:</strong> {job.minimumQualifications.experience.agriculturalLoanAnalysis} year(s)</p>
+                                                )}
+                                                {job.minimumQualifications.experience.creditAnalysis !== undefined && (
+                                                  <p><strong>Credit Analysis:</strong> {job.minimumQualifications.experience.creditAnalysis} year(s)</p>
+                                                )}
+                                                {job.minimumQualifications.experience.farmBusinessManagement !== undefined && (
+                                                  <p><strong>Farm Business Management:</strong> {job.minimumQualifications.experience.farmBusinessManagement} year(s)</p>
+                                                )}
+                                              </div>
+                                              
+                                              {job.substitutions && job.substitutions.length > 0 && (
+                                                <div style={{ marginTop: '16px' }}>
+                                                  <strong>Substitutions:</strong>
+                                                  <ul>
+                                                    {job.substitutions.map((sub, idx) => (
+                                                      <li key={idx}>{sub}</li>
+                                                    ))}
+                                                  </ul>
+                                                </div>
+                                              )}
+                                              
+                                              {job.otherRequirements && job.otherRequirements.length > 0 && (
+                                                <div style={{ marginTop: '16px' }}>
+                                                  <strong>Other Requirements:</strong>
+                                                  <ul>
+                                                    {job.otherRequirements.map((req, idx) => (
+                                                      <li key={idx}>{req}</li>
+                                                    ))}
+                                                  </ul>
+                                                </div>
+                                              )}
                                             </div>                                            
                                           </div>
                                           ))
