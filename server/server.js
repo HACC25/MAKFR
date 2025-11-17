@@ -133,6 +133,7 @@ app.post('/jobListings', async (req, res) => {
       if (!doc.exists) {
         return res.status(404).json({ error: 'Job not found' });
       }
+      console.log(doc.data());
       return res.json(doc.data());
     }
 
@@ -140,6 +141,7 @@ app.post('/jobListings', async (req, res) => {
     const snapshot = await jobPostings.get();
     const jobs = [];
     snapshot.forEach(d => jobs.push({ id: d.id, ...d.data() }));
+    console.log(jobs)
     return res.json(jobs);
   } catch (err) {
     console.error('Error fetching job listings:', err);
