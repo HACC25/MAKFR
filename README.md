@@ -101,3 +101,5 @@ If you want, I can:
 ---
 
 Made for local development. Keep secret keys out of version control.
+
+If you need any help with environment setup or authentication (env vars, Firebase, API keys) please contact @altronxs — they can provide the required credentials and guidance.
