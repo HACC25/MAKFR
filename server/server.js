@@ -7,7 +7,7 @@
  * Author: Kyle Alexander Baldovi
  * Date: 2024-06-10
  */
-
+// 
 
 const PDFParser = require('pdf-parse'); 
 const mammoth = require('mammoth');
@@ -41,7 +41,14 @@ const upload = multer({ storage: storage });
 
 
 // // Define a route to send an HTML file
-app.use(cors());
+
+const corsOptions = {
+  origin: 'http://localhost:5173', // Your React app's origin
+  methods: 'GET,POST,PUT,DELETE', // Allowed HTTP methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ limit: '20mb', extended: true }));
 
@@ -70,7 +77,122 @@ app.post('/job-posting', async (req, res) => {
   res.send({ msg:"job posting(s) added!!" });
 });
 
-// Application submission route
+// Application submission route from frontend form
+// Handles form submission with applicant ID, answers to questions, and file uploads
+// Expects form-data with: jobId, applicantId, question1, question2, question3, resume, and jobApplication (both optional)
+// Supports DOCX and PDF file types for both resume and job application
+app.post('/api/submitApplication', upload.fields([
+  { name: 'resume', maxCount: 1 },
+  { name: 'jobApplication', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    console.log("=== APPLICATION SUBMISSION RECEIVED ===");
+    console.log("Body:", req.body);
+    console.log("Files received:", req.files ? Object.keys(req.files) : "No files");
+    
+    const { jobId, applicantId, question1, question2, question3 } = req.body;
+
+    // Validate required fields
+    if (!jobId || !applicantId || !question1 || !question2 || !question3) {
+      const missingFields = [];
+      if (!jobId) missingFields.push('jobId');
+      if (!applicantId) missingFields.push('applicantId');
+      if (!question1) missingFields.push('question1');
+      if (!question2) missingFields.push('question2');
+      if (!question3) missingFields.push('question3');
+      console.error("Missing required fields:", missingFields);
+      return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
+    }
+
+    let resumeText = '';
+    let jobApplicationText = '';
+    
+    // Extract text from resume if file was uploaded
+    if (req.files && req.files['resume']) {
+      try {
+        console.log("Processing resume file...");
+        const resumeFile = req.files['resume'][0];
+        console.log("Resume file details:", { name: resumeFile.originalname, size: resumeFile.size });
+        const fileData = await fs.readFile(resumeFile.path);
+        resumeText = await extractTextFromBuffer(fileData, path.extname(resumeFile.originalname).toLowerCase());
+        console.log("Resume text extracted, length:", resumeText.length);
+        
+        // Delete the local file after successful processing
+        await fs.unlink(resumeFile.path);
+        console.log("Resume file deleted from uploads folder");
+      } catch (error) {
+        console.error("Error extracting text from resume:", error);
+        // Delete the file even if extraction fails
+        if (req.files['resume']) {
+          await fs.unlink(req.files['resume'][0].path).catch(err => console.error("Error deleting resume file:", err));
+        }
+        return res.status(500).json({ error: 'Failed to extract resume text: ' + error.message });
+      }
+    } else {
+      console.log("No resume file provided");
+    }
+
+    // Extract text from job application if file was uploaded
+    if (req.files && req.files['jobApplication']) {
+      try {
+        console.log("Processing job application file...");
+        const appFile = req.files['jobApplication'][0];
+        console.log("Job application file details:", { name: appFile.originalname, size: appFile.size });
+        const fileData = await fs.readFile(appFile.path);
+        jobApplicationText = await extractTextFromBuffer(fileData, path.extname(appFile.originalname).toLowerCase());
+        console.log("Job application text extracted, length:", jobApplicationText.length);
+        
+        // Delete the local file after successful processing
+        await fs.unlink(appFile.path);
+        console.log("Job application file deleted from uploads folder");
+      } catch (error) {
+        console.error("Error extracting text from job application:", error);
+        // Delete the file even if extraction fails
+        if (req.files['jobApplication']) {
+          await fs.unlink(req.files['jobApplication'][0].path).catch(err => console.error("Error deleting job application file:", err));
+        }
+        // Don't return error here as job application is optional
+        jobApplicationText = '';
+      }
+    } else {
+      console.log("No job application file provided (optional)");
+    }
+
+    const now = new Date();
+    const formattedTime = now.toISOString().slice(0, 19) + 'Z';
+
+    // Create application object combining form data and both files
+    const applicationJson = {
+      applicantId: applicantId,
+      jobId: jobId,
+      submissionDate: formattedTime,
+      question1: question1,
+      question2: question2,
+      question3: question3,
+      resumeText: resumeText || 'No resume uploaded',
+      jobApplicationText: jobApplicationText || 'No job application uploaded',
+      currentStatus: false // Status will be updated when AI review is complete
+    };
+
+    console.log("Attempting to save application to database...");
+    // Save application to database
+    const docRef = await Applications.add(applicationJson);
+    console.log("Application successfully saved with ID:", docRef.id);
+    console.log("=== APPLICATION SUBMISSION SUCCESSFUL ===");
+    
+    res.json({ 
+      msg: 'Application submitted successfully',
+      applicationId: docRef.id 
+    });
+  } catch (error) {
+    console.error("=== ERROR IN APPLICATION SUBMISSION ===");
+    console.error("Error:", error);
+    console.error("Error stack:", error.stack);
+    return res.status(500).json({ error: 'Failed to submit application: ' + error.message });
+  }
+});
+
+// Legacy application submission route (kept for backwards compatibility)
 // Handles file upload, text extraction, and saving application data
 // Expects 'document' field in form-data for file upload
 // and 'applicantId' and 'jobId' in the body
@@ -115,11 +237,122 @@ app.post('/applications', upload.single('document'), async (req, res) => {
 });
 
 
-app.get('/user', async (req, res) => {
-  const email = req.body.email;
-  const response = await getData(User, 'email', '==', email);
-  //console.log('User data response:', response);
-  res.json({ response });
+// Accept POST requests from the Vite proxy at `/api/jobListings`.
+// If a `jobId` is provided in the body, return that document.
+// Otherwise return all job postings as an array.
+app.post('/api/jobListings', async (req, res) => {
+  try {
+    const jobId = req.body.jobId;
+    if (jobId) {
+      const doc = await jobPostings.doc(jobId).get();
+      if (!doc.exists) {
+        return res.status(404).json({ error: 'Job not found' });
+      }
+      console.log(doc.data());
+      return res.json(doc.data());
+    }
+
+    // No jobId provided: return all job postings
+    const snapshot = await jobPostings.get();
+    const jobs = [];
+    snapshot.forEach(d => jobs.push({ id: d.id, ...d.data() }));
+    console.log(jobs)
+    return res.json(jobs);
+  } catch (err) {
+    console.error('Error fetching job listings:', err);
+    return res.status(500).json({ error: 'Failed to fetch job listings' });
+  }
+});
+
+// Reviewer endpoints: list applications, review outcomes, stats, and finalize decisions
+app.get('/api/reviewer/applications', async (req, res) => {
+  try {
+    const snapshot = await Applications.get();
+    const apps = [];
+    snapshot.forEach(d => apps.push({ id: d.id, ...d.data() }));
+    return res.json(apps);
+  } catch (err) {
+    console.error('Error fetching applications for reviewer:', err);
+    return res.status(500).json({ error: 'Failed to fetch applications' });
+  }
+});
+
+app.get('/api/reviewer/reviews', async (req, res) => {
+  try {
+    const snapshot = await ReviewOutcomes.get();
+    const reviews = [];
+    snapshot.forEach(d => reviews.push({ id: d.id, ...d.data() }));
+    return res.json(reviews);
+  } catch (err) {
+    console.error('Error fetching review outcomes for reviewer:', err);
+    return res.status(500).json({ error: 'Failed to fetch review outcomes' });
+  }
+});
+
+// Simple aggregated stats for dashboard
+app.get('/api/reviewer/stats', async (req, res) => {
+  try {
+    const appsSnapshot = await Applications.get();
+    const totalApplications = appsSnapshot.size;
+    let reviewed = 0;
+    const perJobCounts = {};
+    appsSnapshot.forEach(d => {
+      const data = d.data();
+      if (data.currentStatus === true) reviewed++;
+      const j = data.jobId || 'unknown';
+      perJobCounts[j] = (perJobCounts[j] || 0) + 1;
+    });
+
+    const reviewsSnapshot = await ReviewOutcomes.get();
+    const decisionCounts = { Qualified: 0, NotQualified: 0, HumanReviewRequested: 0, Other: 0 };
+    reviewsSnapshot.forEach(d => {
+      const data = d.data();
+      const decision = (data.decision || '').toString().toLowerCase();
+      if (decision.includes('qualif')) decisionCounts.Qualified++;
+      else if (decision.includes('not')) decisionCounts.NotQualified++;
+      else if (decision.includes('human')) decisionCounts.HumanReviewRequested++;
+      else decisionCounts.Other++;
+    });
+
+    return res.json({ totalApplications, reviewed, perJobCounts, decisionCounts });
+  } catch (err) {
+    console.error('Error computing reviewer stats:', err);
+    return res.status(500).json({ error: 'Failed to compute stats' });
+  }
+});
+
+// Finalize an application decision (mark reviewed/final)
+app.put('/api/reviewer/finalize/:applicationId', express.json(), async (req, res) => {
+  try {
+    const applicationId = req.params.applicationId;
+    const { decision, reviewerId, reasoningLog } = req.body;
+    if (!decision || !reviewerId) {
+      return res.status(400).json({ error: 'decision and reviewerId are required' });
+    }
+
+    const now = new Date();
+    const formattedTime = now.toISOString().slice(0, 19) + 'Z';
+
+    // Upsert review outcome
+    await ReviewOutcomes.doc(applicationId).set({
+      decision,
+      reviewType: 'Human',
+      reviewTimestamp: formattedTime,
+      reviewerId,
+      reasoningLog: reasoningLog || '',
+      isFinalDecision: true,
+      applicantId: (await Applications.doc(applicationId).get()).data()?.applicantId || null,
+      jobId: (await Applications.doc(applicationId).get()).data()?.jobId || null
+    }, { merge: true });
+
+    // Update application currentStatus to true (reviewed)
+    await Applications.doc(applicationId).update({ currentStatus: true });
+
+    return res.json({ msg: 'Application finalized' });
+  } catch (err) {
+    console.error('Error finalizing application:', err);
+    return res.status(500).json({ error: 'Failed to finalize application' });
+  }
 });
 
 // Function to extract text from DOCX and PDF files

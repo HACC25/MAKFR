@@ -74,4 +74,4 @@ async function geminiTextImage(prompt, image) {
     }
 }
 
-module.exports = { generateJsonOutput, uploadUserData, geminiTextImage };
+module.exports = { generateJsonOutput, geminiTextImage };
