@@ -4,6 +4,10 @@ This repository contains a small full-stack demo: a Node/Express server that man
 
 This README explains how to run the project locally, where the important files are, and how to tweak the visual styles (the dashboard uses a grayscale design).
 
+Made for local development. Keep secret keys out of version control.
+
+If you need any help with environment setup or authentication (env vars, Firebase, API keys) please contact @altronxs or email kyleboy1010@gmail.com — they can provide the required credentials and guidance.
+
 ## Repo layout
 
 - `server/` — Express API, file uploads, and AI + Firebase wiring. Run the server from here.
@@ -100,6 +104,4 @@ If you want, I can:
 
 ---
 
-Made for local development. Keep secret keys out of version control.
 
-If you need any help with environment setup or authentication (env vars, Firebase, API keys) please contact @altronxs — they can provide the required credentials and guidance.
